@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:17
     container_name: postgres_n8n_ejemplo
     restart: always
     env_file: .env
@@ -9,7 +9,7 @@ services:
       - POSTGRES_PASSWORD=${DB_POSTGRES_PASSWORD}
       - POSTGRES_DB=${DB_POSTGRES_DB}
     volumes:
-      - postgres_n8n_ejemplo_data:/var/lib/postgresql
+      - postgres_n8n_ejemplo_data:/var/lib/postgresql/data
   redis:
     image: redis:latest
     container_name: redis_n8n_ejemplo
@@ -17,7 +17,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - .redis-data:/data
+      - redis_data:/data
   n8n-main:
     image: n8nio/n8n:latest
     container_name: n8n_main
@@ -30,25 +30,35 @@ services:
       - GENERIC_TIMEZONE=America/Mexico_City
       - TZ=America/Mexico_City
       - NODE_ENV=production
+      - N8N_PORT=5671 # Puerto personalizado
+      # Configuración de Base de Datos
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres_n8n_ejemplo
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${DB_POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${DB_POSTGRES_PASSWORD}
       - DB_POSTGRESDB_DATABASE=${DB_POSTGRES_DB}
-
+      # Configuración de Colas (Queue Mode)
       - EXECUTIONS_MODE=queue
       - QUEUE_BULL_REDIS_HOST=redis_n8n_ejemplo
       - QUEUE_BULL_REDIS_PORT=6379
+      # CONFIGURACIÓN DE SEGURIDAD Y ESCALABILIDAD (Corregida)
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true  # Resuelve la advertencia de permisos (Seguridad)
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false          # Mantiene el acceso a ENV en nodos (Compatibilidad futura)
+      - N8N_GIT_NODE_DISABLE_BARE_REPOS=true        # Mejora la seguridad del nodo Git (Recomendación)
+      - OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS=true   # Envía ejecuciones manuales al worker (Escalabilidad)
+      # Autenticación Básica
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=admin
       - N8N_RUNNERS_ENABLED=true
+      
     ports:
-      - "5679:5679"
+      - "5671:5671"
     volumes:
       - ./n8n-data:/home/node/.n8n
+
   n8n-worker:
     image: n8nio/n8n:latest
     container_name: n8n_worker
@@ -57,21 +67,29 @@ services:
       - postgres
       - redis
     env_file: .env
-    command: ["worker", "--concurrency=1"]
+    # CONCURRENCIA AUMENTADA a 5 (Recomendación para estabilidad)
+    command: worker --concurrency=5 
     environment:
       - GENERIC_TIMEZONE=America/Mexico_City
       - TZ=America/Mexico_City
       - NODE_ENV=production
+      # Configuración de Base de Datos
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres_n8n_ejemplo
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_USER=${DB_POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${DB_POSTGRES_PASSWORD}
       - DB_POSTGRESDB_DATABASE=${DB_POSTGRES_DB}
-
+      # Configuración de Colas (Queue Mode)
       - EXECUTIONS_MODE=queue
       - QUEUE_BULL_REDIS_HOST=redis_n8n_ejemplo
       - QUEUE_BULL_REDIS_PORT=6379
+      # CONFIGURACIÓN DE SEGURIDAD Y ESCALABILIDAD (Corregida)
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true  # Resuelve la advertencia de permisos (Seguridad)
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false          # Mantiene el acceso a ENV en nodos (Compatibilidad futura)
+      - N8N_GIT_NODE_DISABLE_BARE_REPOS=true        # Mejora la seguridad del nodo Git (Recomendación)
+      
+      # Worker específico
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
@@ -82,5 +100,5 @@ services:
       - ./n8n-data:/home/node/.n8n
 volumes:
   postgres_n8n_ejemplo_data:
+  redis_data:
   n8n-data:
-  redis-data:
