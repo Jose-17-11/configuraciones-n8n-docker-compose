@@ -1,0 +1,86 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres_n8n_ejemplo
+    restart: always
+    env_file: .env
+    environment:
+      - POSTGRES_USER=${DB_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${DB_POSTGRES_PASSWORD}
+      - POSTGRES_DB=${DB_POSTGRES_DB}
+    volumes:
+      - postgres_n8n_ejemplo_data:/var/lib/postgresql
+  redis:
+    image: redis:latest
+    container_name: redis_n8n_ejemplo
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - .redis-data:/data
+  n8n-main:
+    image: n8nio/n8n:latest
+    container_name: n8n_main
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    env_file: .env
+    environment:
+      - GENERIC_TIMEZONE=America/Mexico_City
+      - TZ=America/Mexico_City
+      - NODE_ENV=production
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres_n8n_ejemplo
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=${DB_POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_DATABASE=${DB_POSTGRES_DB}
+
+      - EXECUTIONS_MODE=queue
+      - QUEUE_BULL_REDIS_HOST=redis_n8n_ejemplo
+      - QUEUE_BULL_REDIS_PORT=6379
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - N8N_RUNNERS_ENABLED=true
+    ports:
+      - "5679:5679"
+    volumes:
+      - ./n8n-data:/home/node/.n8n
+  n8n-worker:
+    image: n8nio/n8n:latest
+    container_name: n8n_worker
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    env_file: .env
+    command: ["worker", "--concurrency=1"]
+    environment:
+      - GENERIC_TIMEZONE=America/Mexico_City
+      - TZ=America/Mexico_City
+      - NODE_ENV=production
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres_n8n_ejemplo
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=${DB_POSTGRES_USER}
+      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_DATABASE=${DB_POSTGRES_DB}
+
+      - EXECUTIONS_MODE=queue
+      - QUEUE_BULL_REDIS_HOST=redis_n8n_ejemplo
+      - QUEUE_BULL_REDIS_PORT=6379
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_WORKER_MODE=true
+    volumes:
+      - ./n8n-data:/home/node/.n8n
+volumes:
+  postgres_n8n_ejemplo_data:
+  n8n-data:
+  redis-data:
