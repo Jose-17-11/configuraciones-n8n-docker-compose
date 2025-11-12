@@ -1,27 +1,31 @@
 services:
+  # Base de datos PostgreSQL
   postgres:
-    image: postgres:17
+    image: postgres:17    # Aqui puedes modificar la versión que mas se adecue a tus necesidades
     container_name: postgres_n8n_ejemplo
     restart: always
-    env_file: .env
-    environment:
+    env_file: .env        # Carga variables de entorno desde el archivo .env
+    environment:          # Configuración básica de la base de datos
       - POSTGRES_USER=${DB_POSTGRES_USER}
       - POSTGRES_PASSWORD=${DB_POSTGRES_PASSWORD}
       - POSTGRES_DB=${DB_POSTGRES_DB}
     volumes:
       - postgres_n8n_ejemplo_data:/var/lib/postgresql/data
+  # Servidor Redis para manejo de colas
   redis:
-    image: redis:latest
+    image: redis:latest   # Aqui puedes modificar la versión que mas se adecue a tus necesidades
     container_name: redis_n8n_ejemplo
     restart: always
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+  # Servicio principal de n8n
   n8n-main:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:latest  # Aqui puedes modificar la versión que mas se adecue a tus necesidades
     container_name: n8n_main
     restart: always
+    # Servicios de los que depende n8n
     depends_on:
       - postgres
       - redis
@@ -30,7 +34,7 @@ services:
       - GENERIC_TIMEZONE=America/Mexico_City
       - TZ=America/Mexico_City
       - NODE_ENV=production
-      - N8N_PORT=5671 # Puerto personalizado
+      - N8N_PORT=5671 # Puerto personalizado para n8n, si ya tienes otro servicio en el 5678, puedes personalizar a un puerto que este libre
       # Configuración de Base de Datos
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres_n8n_ejemplo
@@ -55,10 +59,10 @@ services:
       - N8N_RUNNERS_ENABLED=true
       
     ports:
-      - "5671:5671"
+      - "5671:5671" # Mapea el puerto personalizado al host
     volumes:
       - ./n8n-data:/home/node/.n8n
-
+  # Servicio Worker de n8n para procesamiento en segundo plano
   n8n-worker:
     image: n8nio/n8n:latest
     container_name: n8n_worker
@@ -98,6 +102,7 @@ services:
       - N8N_WORKER_MODE=true
     volumes:
       - ./n8n-data:/home/node/.n8n
+# Definición de volúmenes para persistencia de datos (por si se llegan a detener o eliminar los contenedores accidentalmente sin perder la información del proyecto)
 volumes:
   postgres_n8n_ejemplo_data:
   redis_data:
